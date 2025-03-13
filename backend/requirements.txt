@@ -41,3 +41,4 @@ psycopg2-binary
 flake8==6.0.0
 flake8-isort==6.0.0
 numpy
+legacy-cgi
