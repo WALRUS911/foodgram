@@ -5,39 +5,27 @@ volumes:
 services:
   db:
     container_name: foodgram-db
-    image: postgres:13.10
+    image: postgres:13
     env_file: .env
     volumes:
       - pg_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "sh -c 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}'"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   frontend:
-    image: walrus911/frontend_food
     container_name: foodgram-front
+    image: walrus911/frontend_food
     command: cp -r /app/build/. /static/
     volumes:
       - static:/static
       - ../frontend/:/app/result_build/
-
   backend:
-    image: walrus911/backend_food
     container_name: foodgram-backend
     env_file: .env
-    depends_on:
-      db:
-        condition: service_healthy
+    build: ../backend/
     volumes:
-      - media:/app/media
-      - static:/admin_static
-
+      - media:/app/media/
+      - static:/static/
   nginx:
     container_name: foodgram-proxy
     image: nginx:1.25.4-alpine
-    restart: always
     ports:
       - "8000:80"
     volumes:
