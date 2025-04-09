@@ -93,7 +93,8 @@ USE_TZ = True
 
 ROOT_URLCONF = 'foodgram.urls'
 
-STATIC_URL = '/admin_static/'
+# STATIC_URL = '/admin_static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'collected_static')
 
 MEDIA_URL = '/media/'
