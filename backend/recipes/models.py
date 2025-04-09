@@ -131,7 +131,7 @@ class Recipe(models.Model):
     name = models.CharField(
         verbose_name='Название',
         max_length=MAX_LENGTH_NAME_RECIPE,
-        
+
     )
     text = models.TextField(
         verbose_name='Описание',

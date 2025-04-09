@@ -61,7 +61,7 @@ class UserSerializerSubscribe(serializers.ModelSerializer):
             instance.author, context=self.context
         ).data
 
-    def validate(self, data):    
+    def validate(self, data):
         author = data['author']
         user = self.context['request'].user
         if user == author:
@@ -110,7 +110,7 @@ class UserSerializerSubscribeRepresentation(UserSerializerProfile):
         request = self.context.get('request')
         recipes = obj.recipes.all()
         recipes_limit = request.query_params.get('recipes_limit')
-        
+
         if recipes_limit:
             try:
                 recipes_limit = int(recipes_limit)
