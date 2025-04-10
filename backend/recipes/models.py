@@ -3,6 +3,10 @@ from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.db.models import UniqueConstraint
+from django.core.exceptions import ValidationError
+from django.db.models import Q
+
 
 from foodgram.const import (
     MAX_LENGTH_NAME,
@@ -41,14 +45,25 @@ class Subscribe(models.Model):
             models.UniqueConstraint(
                 fields=('author', 'user',),
                 name='user_author_subscription',
+            ),
+            # Запрет подписки на самого себя
+            models.CheckConstraint(
+                check=~Q(user=models.F('author')),
+                name='prevent_self_subscription'
             )
         ]
 
     def __str__(self):
         return f"{self.user} на автора {self.author}"
 
+    def clean(self):
+        """Валидация на уровне приложения"""
+        if self.user == self.author:
+            raise ValidationError('Нельзя подписаться на самого себя.')
+        super().clean()
 
-class CustomUser(AbstractUser):
+
+class User(AbstractUser):
     username = models.CharField(
         verbose_name='Логин',
         unique=True,
@@ -72,7 +87,7 @@ class CustomUser(AbstractUser):
         upload_to='avatars/',
         verbose_name='Аватар',
         blank=True,
-        null=True,
+        default='',
     )
 
     REQUIRED_FIELDS = ['username', 'last_name', 'first_name', 'password']
@@ -122,6 +137,12 @@ class Ingredient(models.Model):
         verbose_name = 'Ингредиент'
         ordering = ('name',)
         verbose_name_plural = 'Ингредиенты'
+        constraints = [
+            UniqueConstraint(
+                fields=('name', 'measurement_unit'),
+                name='unique_ingredient_name_measurement'
+            )
+        ]
 
     def __str__(self):
         return self.name
@@ -166,7 +187,7 @@ class Recipe(models.Model):
     class Meta:
         verbose_name_plural = 'Рецепты'
         verbose_name = 'Рецепт'
-        ordering = ('-id',)
+        ordering = ('name',)
 
     def __str__(self):
         return self.name
@@ -194,66 +215,54 @@ class RecipeIngredient(models.Model):
     class Meta:
         verbose_name_plural = 'Ингредиенты в рецепте'
         verbose_name = 'Ингредиент в рецепте'
-        ordering = ('id',)
+        ordering = ('ingredient',)
+        constraints = [
+            UniqueConstraint(
+                fields=('recipe', 'ingredient'),
+                name='unique_recipe_ingredient_pair'
+            )
+        ]
 
     def __str__(self):
         return (f'{self.recipe.name}: {self.ingredient.name} - {self.amount} '
                 f'{self.ingredient.measurement_unit}')
 
 
-class ShoppingCart(models.Model):
+class UserRecipeBaseModel(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        related_name='carts',
         verbose_name='Пользователь',
-        on_delete=models.CASCADE,
+        on_delete=models.CASCADE
     )
     recipe = models.ForeignKey(
         Recipe,
         verbose_name='Рецепт',
-        related_name='carts',
-        on_delete=models.CASCADE,
+        on_delete=models.CASCADE
     )
 
     class Meta:
-        verbose_name_plural = 'Список покупок'
-        verbose_name = 'Список покупок'
+        abstract = True
         ordering = ('id',)
         constraints = [
             models.UniqueConstraint(
-                name='user_shoppingcart',
-                fields=('recipe', 'user',),
+                fields=('user', 'recipe'),
+                name='%(app_label)s_%(class)s_unique'  # Автогенерация имени
             )
         ]
 
     def __str__(self):
-        return f'{self.recipe} пользователем {self.user}'
+        return f'{self.recipe} | {self.user}'
 
 
-class Favorite(models.Model):
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        related_name='favorites',
-        verbose_name='Пользователь',
-        on_delete=models.CASCADE,
-    )
-    recipe = models.ForeignKey(
-        Recipe,
-        verbose_name='Рецепт',
-        related_name='favorites',
-        on_delete=models.CASCADE,
-    )
-
-    class Meta:
-        verbose_name_plural = 'Избранное'
+class Favorite(UserRecipeBaseModel):
+    class Meta(UserRecipeBaseModel.Meta):
         verbose_name = 'Избранное'
-        ordering = ('id',)
-        constraints = [
-            models.UniqueConstraint(
-                name='user_favorite',
-                fields=('recipe', 'user'),
-            )
-        ]
+        verbose_name_plural = 'Избранные рецепты'
+        default_related_name = 'favorites'
 
-    def __str__(self):
-        return f'Рецепт добавлен {self.recipe} пользователем {self.user}'
+
+class ShoppingCart(UserRecipeBaseModel):
+    class Meta(UserRecipeBaseModel.Meta):
+        verbose_name = 'Корзина'
+        verbose_name_plural = 'Корзины'
+        default_related_name = 'shopping_carts'

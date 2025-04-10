@@ -139,3 +139,5 @@ dmypy.json
 static/
 media/
 /backend/collected_static/
+infra/docker-compose.db.yml
+backend/recipes/migrations/0001_initial.py

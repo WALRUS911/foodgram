@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db.models import Count
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.html import format_html
@@ -11,10 +12,29 @@ User = get_user_model()
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ('id', 'email', 'username')
+    list_display = ('id', 'email', 'username', 'get_recipes_count',
+                    'get_subscribers_count')
     list_filter = ('email', 'username', 'last_name', 'first_name')
     list_display_links = ('username',)
     search_fields = ('email', 'username')
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        queryset = queryset.annotate(
+            recipes_count=Count('recipe', distinct=True),
+            subscribers_count=Count('subscribing', distinct=True)
+        )
+        return queryset
+
+    def get_recipes_count(self, obj):
+        return obj.recipes_count
+    get_recipes_count.short_description = 'Рецептов'
+    get_recipes_count.admin_order_field = 'recipes_count'
+
+    def get_subscribers_count(self, obj):
+        return obj.subscribers_count
+    get_subscribers_count.short_description = 'Подписчиков'
+    get_subscribers_count.admin_order_field = 'subscribers_count'
 
 
 @admin.register(Tag)

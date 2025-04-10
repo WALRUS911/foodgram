@@ -1,4 +1,3 @@
-from collections import Counter
 from base64 import b64decode
 
 from django.contrib.auth import get_user_model
@@ -83,7 +82,7 @@ class UserSerializerProfile(UserSerializer):
         user = self.context['request'].user
         return (
             user.is_authenticated
-            and Subscribe.objects.filter(author=obj, user=user).exists()
+            and obj.subscribing.filter(user=user).exists()
         )
 
 
@@ -126,13 +125,13 @@ class UserSerializerSubscribeRepresentation(UserSerializerProfile):
 class IngredientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ingredient
-        fields = ('id', 'measurement_unit', 'name')
+        fields = '__all__'
 
 
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
-        fields = ('id', 'slug', 'name')
+        fields = '__all__'
 
 
 class SerializerRecipeIngredientInput(serializers.ModelSerializer):
@@ -216,19 +215,9 @@ class SerializerRecipeCreateUpdate(serializers.ModelSerializer):
         ingredient_ids = [
             ingredient['ingredient'].id for ingredient in ingredients
         ]
-        ingredient_counts = Counter(ingredient_ids)
-        duplicates = [
-            str(ingredient_id)
-            for ingredient_id, count in ingredient_counts.items()
-            if count > 1
-        ]
-
-        if duplicates:
+        if len(ingredient_ids) != len(set(ingredient_ids)):
             raise serializers.ValidationError({
-                'ingredients': (
-                    'Ингредиенты не уникальны. '
-                    f'Повторяются: {", ".join(duplicates)}'
-                )
+                'ingredients': 'Ингредиенты должны быть уникальными.'
             })
 
         tags = data.get('tags')
@@ -238,19 +227,9 @@ class SerializerRecipeCreateUpdate(serializers.ModelSerializer):
             })
 
         tag_ids = [tag.id for tag in tags]
-        tag_counts = Counter(tag_ids)
-        duplicate_tags = [
-            str(tag_id)
-            for tag_id, count in tag_counts.items()
-            if count > 1
-        ]
-
-        if duplicate_tags:
+        if len(tag_ids) != len(set(tag_ids)):
             raise serializers.ValidationError({
-                'tags': (
-                    'Теги должны быть уникальными. '
-                    f'Повторяются: {", ".join(duplicate_tags)}'
-                )
+                'tags': 'Теги должны быть уникальными.'
             })
         return data
 
